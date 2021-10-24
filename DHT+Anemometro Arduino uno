@@ -1,0 +1,118 @@
+//#include<ESP8266WiFi.h>
+#include "DHT.h"
+//#include <ThingSpeak.h>
+/*
+ char ssid[] = "Wi-Fi House 2,4G";
+ char pass[] = "DC8987SC01071105";
+ int status = WL_IDLE_STATUS;
+ WiFiClient client;
+
+ //THINGSPEAK
+ unsigned long myChannelNumber = 1512831 ;
+ const char * myWriteAPIKey = "FOO4L91V7ENPY32V";
+ const int updateThingSpeakInterval = 1 * 1000;
+*/
+ #define DHTPIN D4
+ #define DHTTYPE DHT22
+ DHT dht(DHTPIN, DHTTYPE);
+
+#define anemometro 5
+
+//Variabili
+float temperatura = 0.0;
+float umidita = 0.0;
+volatile unsigned long timeSinceLastTick = 0;
+volatile unsigned long lastTick = 0;    
+float Velocita;
+long secsClock = 0;
+
+    
+//Prototipi funzioni
+void getDati();
+void VisualizzaSeriale();
+//void InviaDati();
+void windTick();
+
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  /*WiFi.begin(ssid,pass);
+  while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+  }
+  Serial.println("WiFi connesso");
+  Serial.println("indirizzo IP: ");
+  Serial.println(WiFi.localIP());
+  while (!Serial) continue;
+  ThingSpeak.begin(client);*/
+  pinMode(anemometro, INPUT);     
+  attachInterrupt(digitalPinToInterrupt(anemometro), windTick, FALLING);
+  
+}
+
+void loop() {
+  getDati();
+  VisualizzaSeriale();
+  //InviaDati();
+  //Serial.println("Vado a dormire per 10 minuti circa");
+  //ESP.deepSleep(6e8);
+}
+
+void getDati(){
+  static unsigned long outLoopTimer = 0;
+  static unsigned long clockTimer = 0;
+  static unsigned long tempMSClock = 0;
+  
+  temperatura = dht.readTemperature();
+  umidita = dht.readHumidity();
+
+  
+  tempMSClock += millis() - clockTimer;
+  clockTimer = millis();
+  
+  while (tempMSClock >= 1000)
+  {
+      secsClock++;
+      tempMSClock -= 1000;
+   }
+   
+   if (millis() - outLoopTimer >= 2000)
+   {
+      outLoopTimer = millis();
+      if (timeSinceLastTick != 0) {
+        Velocita = 1000.0/timeSinceLastTick;
+        Velocita = Velocita*2.4*4.5;
+      }
+   }
+}
+
+void VisualizzaSeriale(){
+  /*Serial.print("Sei connesso alla rete: "); 
+  Serial.print(ssid);
+  Serial.print("con IP: "); Serial.println(WiFi.localIP());
+  Serial.println();*/
+  Serial.print("Temperatura: "); Serial.print(temperatura); Serial.println(" °C");
+  Serial.println();
+  Serial.print("Umidita': "); Serial.print(umidita); Serial.println(" %");
+  Serial.println();
+  Serial.print("Velocita' vento: "); Serial.print(Velocita); Serial. println(" km/h");
+  
+}
+/*
+void InviaDati(){
+  Serial.println("Invio dati a Thingspeak");
+  ThingSpeak.setField(1, temperatura);
+  ThingSpeak.setField(2, umidita);
+  ThingSpeak.setField(3, (float)Velocita);
+  ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+  delay(updateThingSpeakInterval);
+}
+*/
+void windTick()
+{
+      timeSinceLastTick = millis() - lastTick;
+      lastTick = millis();
+}
+    
