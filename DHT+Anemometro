@@ -56,7 +56,9 @@ void setup() {
 
 void loop() {
   getDati();
-  VisualizzaSeriale();
+  
+  impulso = digitalRead (sensore);
+  Serial.print("Impulso"); Serial.println(impulso);
   if ((impulso == 1) && (gialetto == 0))
  {
  
@@ -64,8 +66,7 @@ void loop() {
  tempo = millis () - momentoprecedente; 
  momentoprecedente = millis (); /
  Velocita = ((1000 / tempo) / impulsimetrosec);
- Serial.print (velocita);
- Serial.println (" metri/sec ");
+ 
  }
  if ((impulso == 0) && (gialetto == 1))
  {
@@ -79,7 +80,8 @@ void loop() {
  {
  gialetto = 0;
  }
-  InviaDati();
+ VisualizzaSeriale();
+ InviaDati();
   
   /*Serial.println("Vado a dormire per 10 minuti circa");
   ESP.deepSleep(6e8);*/
