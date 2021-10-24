@@ -16,7 +16,7 @@
  #define DHTTYPE DHT22
  DHT dht(DHTPIN, DHTTYPE);
 
- #define anemometro 5
+ #define sensore 5
 
 //Variabili
 float temperatura = 0.0;
