@@ -45,8 +45,6 @@ void setup() {
         Serial.print(".");
   }
   Serial.println("WiFi connesso");
-  Serial.println("indirizzo IP: ");
-  Serial.println(WiFi.localIP());
   while (!Serial) continue;
   ThingSpeak.begin(client);
   pinMode(anemometro, INPUT);     
@@ -98,11 +96,8 @@ void VisualizzaSeriale(){
   Serial.print("Sei connesso alla rete: "); 
   Serial.print(ssid);
   Serial.print("con IP: "); Serial.println(WiFi.localIP());
-  Serial.println();
   Serial.print("Temperatura: "); Serial.print(temperatura); Serial.println(" °C");
-  Serial.println();
   Serial.print("Umidita': "); Serial.print(umidita); Serial.println(" %");
-  Serial.println();
   Serial.print("Velocita' vento: "); Serial.print(Velocita); Serial. println(" km/h");
   
 }
