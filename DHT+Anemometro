@@ -21,17 +21,19 @@
 //Variabili
 float temperatura = 0.0;
 float umidita = 0.0;
-volatile unsigned long timeSinceLastTick = 0;
-volatile unsigned long lastTick = 0;    
-float Velocita;
-long secsClock = 0;
+float momentoprecedente = 0; 
+int gialetto = 0; 
+float tempo = 0; 
+float impulsimetrosec = 0.85; 
+int Velocita = 0; 
+int impulso = 0; 
 
     
 //Prototipi funzioni
 void getDati();
 void VisualizzaSeriale();
 void InviaDati();
-void windTick();
+
 
 
 void setup() {
@@ -48,7 +50,7 @@ void setup() {
   while (!Serial) continue;
   ThingSpeak.begin(client);
   pinMode(anemometro, INPUT);     
-  attachInterrupt(digitalPinToInterrupt(anemometro), windTick, FALLING);
+  momentoprecedente = millis ();
   
 }
 
@@ -61,31 +63,35 @@ void loop() {
 }
 
 void getDati(){
-  static unsigned long outLoopTimer = 0;
-  static unsigned long clockTimer = 0;
-  static unsigned long tempMSClock = 0;
+  
   
   temperatura = dht.readTemperature();
   umidita = dht.readHumidity();
-
+  impulso = digitalRead (sensore);
+ 
+ if ((impulso == 1) && (gialetto == 0))
+ {
+ 
+ gialetto = 1; 
+ tempo = millis () - momentoprecedente; 
+ momentoprecedente = millis (); /
+ Velocita = ((1000 / tempo) / impulsimetrosec);
+ Serial.print (velocita);
+ Serial.println (" metri/sec ");
+ }
+ if ((impulso == 0) && (gialetto == 1))
+ {
+ gialetto = 2;
+ }
+ if ((impulso == 1) && (gialetto == 2))
+ {
+ gialetto = 3;
+ }
+ if ((impulso == 0) && (gialetto == 3))
+ {
+ gialetto = 0;
+ }
   
-  tempMSClock += millis() - clockTimer;
-  clockTimer = millis();
-  
-  while (tempMSClock >= 1000)
-  {
-      secsClock++;
-      tempMSClock -= 1000;
-   }
-   
-   if (millis() - outLoopTimer >= 2000)
-   {
-      outLoopTimer = millis();
-      if (timeSinceLastTick != 0) {
-        Velocita = 1000.0/timeSinceLastTick;
-        Velocita = Velocita*2.4*4.5;
-      }
-   }
 }
 
 void VisualizzaSeriale(){
@@ -110,9 +116,5 @@ void InviaDati(){
   delay(updateThingSpeakInterval);
 }
 
-void windTick()
-{
-      timeSinceLastTick = millis() - lastTick;
-      lastTick = millis();
-}
+
     
