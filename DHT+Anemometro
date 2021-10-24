@@ -56,8 +56,8 @@ void loop() {
   getDati();
   VisualizzaSeriale();
   InviaDati();
-  Serial.println("Vado a dormire per 10 minuti circa");
-  ESP.deepSleep(6e8);
+  /*Serial.println("Vado a dormire per 10 minuti circa");
+  ESP.deepSleep(6e8);*/
 }
 
 void getDati(){
