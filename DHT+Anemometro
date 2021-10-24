@@ -93,7 +93,6 @@ void getDati(){
   
   temperatura = dht.readTemperature();
   umidita = dht.readHumidity();
-  impulso = digitalRead (sensore);
  
  
   
