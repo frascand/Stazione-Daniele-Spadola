@@ -44,30 +44,20 @@ void setup() {
         delay(500);
         Serial.print(".");
   }
-  Serial.println("WiFi connesso");
   while (!Serial) continue;
   ThingSpeak.begin(client);
   pinMode(sensore, INPUT);     
   momentoprecedente = millis ();
-  
+  Serial.println();
+  Serial.print("Sei connesso alla rete: "); 
+  Serial.print(ssid);
+  Serial.print(" con IP: "); Serial.println(WiFi.localIP());
 }
 
 void loop() {
   getDati();
   VisualizzaSeriale();
-  InviaDati();
-  /*Serial.println("Vado a dormire per 10 minuti circa");
-  ESP.deepSleep(6e8);*/
-}
-
-void getDati(){
-  
-  
-  temperatura = dht.readTemperature();
-  umidita = dht.readHumidity();
-  impulso = digitalRead (sensore);
- 
- if ((impulso == 1) && (gialetto == 0))
+  if ((impulso == 1) && (gialetto == 0))
  {
  
  gialetto = 1; 
@@ -89,13 +79,26 @@ void getDati(){
  {
  gialetto = 0;
  }
+  InviaDati();
+  
+  /*Serial.println("Vado a dormire per 10 minuti circa");
+  ESP.deepSleep(6e8);*/
+  
+}
+
+void getDati(){
+  
+  
+  temperatura = dht.readTemperature();
+  umidita = dht.readHumidity();
+  impulso = digitalRead (sensore);
+ 
+ 
   
 }
 
 void VisualizzaSeriale(){
-  Serial.print("Sei connesso alla rete: "); 
-  Serial.print(ssid);
-  Serial.print("con IP: "); Serial.println(WiFi.localIP());
+  Serial.println();
   Serial.print("Temperatura: "); Serial.print(temperatura); Serial.println(" °C");
   Serial.print("Umidita': "); Serial.print(umidita); Serial.println(" %");
   Serial.print("Velocita' vento: "); Serial.print(Velocita); Serial. println(" km/h");
