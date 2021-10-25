@@ -18,7 +18,6 @@ float windgustmph = 0;   // Wind gust speed( mph)
 float windmax = 0;
 
 void setup(){
-  Serial.begin(9600);
   Rotations = 0;   // Set Rotations to 0 ready for calculations
  
   wind_speed_min=100;
@@ -89,7 +88,7 @@ void getWindSpeed(void)
 //-------------------------------------------------------------------------------------------------------------
 ////////////////////////////////////ISR rotation//////////////////////////////////////////////////////////////
 //-------------------------------------------------------------------------------------------------------------
-void isr_rotation(void)   
+ICACHE_RAM_ATTR void isr_rotation(void)   
 {
   if ((millis() - ContactBounceTime) > 30 ) {  // debounce the switch contact.
     Rotations++;
