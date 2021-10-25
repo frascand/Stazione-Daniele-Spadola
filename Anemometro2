@@ -49,6 +49,8 @@ void setup(){
 void loop(){
   getWindSpeed();
  isr_rotation();
+ Serial.print("Velocita: ");
+ Serial.println(windSpeed);
 }
 void getWindSpeed(void)
   {
