@@ -32,29 +32,8 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
- if(millis() - lastSecond >= 1000)
-  {
-
-    lastSecond += 1000;
-
-
-    //Calc the wind speed and direction every second for 120 second to get 2 minute average
-    float currentSpeed = get_wind_speed();
+  float currentSpeed = get_wind_speed();
     windspeedmph = currentSpeed * 1.6; //update global variable for windspeed when using the printWeather() function
-   
-   
-
-    if(++seconds > 59)
-    {
-      seconds = 0;
-
-      if(++minutes > 59) minutes = 0;
-      if(++minutes_10m > 9) minutes_10m = 0;
-
-    }
-  }
-
-  delay(100);
   Serial.println("Velocita' vento: " +String(windspeedmph)+ " km/h");
   
 }
