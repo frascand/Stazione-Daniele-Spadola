@@ -18,6 +18,7 @@ float windgustmph = 0;   // Wind gust speed( mph)
 float windmax = 0;
 
 void setup(){
+  Serial.begin(9600);
   Rotations = 0;   // Set Rotations to 0 ready for calculations
  
   wind_speed_min=100;
