@@ -1,21 +1,89 @@
-#define sensore 5 
+const byte WSPEED = 5;
+long lastSecond; //The millis counter to see when a second rolls by
+byte seconds; //When it hits 60, increase the current minute
+byte minutes; //Keeps track of where we are in various arrays of data
+byte minutes_10m; //Keeps track of where we are in wind gust/dir over last 10 minutes array of data
+
+long lastWindCheck = 0;
+volatile long lastWindIRQ = 0;
+volatile byte windClicks = 0;
 
 
 
+byte windspdavg[120]; //120 bytes to keep track of 2 minute average
 
-void setup()
+#define WIND_DIR_AVG_SIZE 120
+int winddiravg[WIND_DIR_AVG_SIZE]; //120 ints to keep track of 2 minute average
+float windgust_10m[10]; //10 floats to keep track of 10 minute max
+int windgustdirection_10m[10]; //10 ints to keep track of 10 minute max
+float windspeedmph = 0; // [mph instantaneous wind speed]
+float get_wind_speed();
+
+void wspeedIRQ()
+// Activated by the magnet in the anemometer (2 ticks per rotation), attached to input D3
 {
- Serial.begin (9600);
- pinMode (sensore, INPUT);
-
- 
+  if (millis() - lastWindIRQ > 10) // Ignore switch-bounce glitches less than 10ms (142MPH max reading) after the reed switch closes
+  {
+    lastWindIRQ = millis(); //Grab the current time
+    windClicks++; //There is 1.492MPH for each click per second.
+  }
 }
-//
-//
-void loop()
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+  pinMode(WSPEED, INPUT_PULLUP); // input from wind meters windspeed sensor
+  attachInterrupt(1, wspeedIRQ, FALLING);
+  interrupts();
+
+}
+
+void loop() {
+  if(millis() - lastSecond >= 1000)
+  {
+
+    lastSecond += 1000;
+
+
+    //Calc the wind speed and direction every second for 120 second to get 2 minute average
+    float currentSpeed = get_wind_speed();
+    windspeedmph = currentSpeed; //update global variable for windspeed when using the printWeather() function
+   
+   
+
+    if(++seconds > 59)
+    {
+      seconds = 0;
+
+      if(++minutes > 59) minutes = 0;
+      if(++minutes_10m > 9) minutes_10m = 0;
+
+    }
+
+
+  }
+
+  delay(100);
+
+Serial.println(windspeedmph);
+}
+
+float get_wind_speed()
 {
- impulso = digitalRead (sensore);
-  Serial.print ("impulso");
-  Serial.println ( impulso);
- 
+  float deltaTime = millis() - lastWindCheck; //750ms
+
+  deltaTime /= 1000.0; //Covert to seconds
+
+  float windSpeed = (float)windClicks / deltaTime; //3 / 0.750s = 4
+
+  windClicks = 0; //Reset and start watching for new wind
+  lastWindCheck = millis();
+
+  windSpeed *= 1.492; //4 * 1.492 = 5.968MPH
+
+  /* Serial.println();
+   Serial.print("Windspeed:");
+   Serial.println(windSpeed);*/
+
+  return(windSpeed);
 }
