@@ -32,6 +32,9 @@ void wspeedIRQ()
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+  seconds = 0;
+  lastSecond = millis();
+
   pinMode(WSPEED, INPUT_PULLUP); // input from wind meters windspeed sensor
   attachInterrupt(1, wspeedIRQ, FALLING);
   interrupts();
