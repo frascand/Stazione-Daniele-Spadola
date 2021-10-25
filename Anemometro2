@@ -1,108 +1,80 @@
-#include <ArduinoOTA.h>  //https://github.com/jandrassy/ArduinoOTA
+const byte WSPEED = 14;
+long lastWindCheck = 0;
+volatile long lastWindIRQ = 0;
+volatile byte windClicks = 0;
+float windspeedmph = 0; // [mph instantaneous wind speed]
+long lastSecond; //The millis counter to see when a second rolls by
+byte seconds; //When it hits 60, increase the current minute
+byte minutes; //Keeps track of where we are in various arrays of data
+byte minutes_10m; //Keeps track of where we are in wind gust/dir over last 10 minutes array of data
 
-float tipCount1h ;   // bucket tip counter used in interrupt routine
-float tipCount24h ;  // bucket tip counter used in interrupt routine  
-unsigned int counter = 15;
-volatile unsigned long contactTime;
-
-
-//--------------------------------Wind  speed----------------------------------------
-int WindSensorPin = D5;               // Wind speed -ILS sensor (anemometer) GPIO 14
-volatile unsigned long Rotations;     // cup rotation counter used in interrupt routine
-volatile unsigned long ContactBounceTime;  // Timer to avoid contact bounce in interrupt routine
-
-float windSpeed = 0;     // Wind speed (mph)
-float wind_speed_min = 100; // Minimum wind speed (mph)
-float wind_speed_avg;    // 10 minutes average wind speed ( mph)
-float windgustmph = 0;   // Wind gust speed( mph)
-float windmax = 0;
-
-void setup(){
-  Serial.begin(9600);
-  Rotations = 0;   // Set Rotations to 0 ready for calculations
- 
-  wind_speed_min=100;
-  pinMode(WindSensorPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(WindSensorPin), isr_rotation, FALLING);  // change if low to high >> RISING
-  sei();
-  ArduinoOTA.setHostname("NodeMCU_weather_station");
-  ArduinoOTA.onStart([]() {
-    Serial.println("Start");
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
-  });
-  ArduinoOTA.begin();
-  Serial.println("Collecting data from sensors");
-}
-void loop(){
-  getWindSpeed();
- isr_rotation();
- Serial.print("Velocita: ");
- Serial.println(windSpeed);
-}
-void getWindSpeed(void)
-  {
- 
-     Rotations = 0; // Set Rotations count to 0 ready for calculations
-     //sei(); // Enables interrupts
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 sedconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     //cli(); // Disable interrupts
-     
-     /* convert to mp/h using the formula V=P(2.25/T)
-      V = P(2.25/30) = P * 0.075       V - speed in mph,  P - pulses per sample period, T - sample period in seconds */
-     windSpeed = Rotations * 0.15; // 30 seconds
-     Rotations = 0;   // Reset count for next sample
-     
-  if (windSpeed > windgustmph) {
-     windgustmph = windSpeed;
-}
- if (wind_speed_min > windSpeed ) {
-     wind_speed_min = windSpeed;
-}
-
- wind_speed_avg = (windgustmph + wind_speed_min) * 0.5;   // average wind speed mph per 10 minutes
- 
-}
-
-// This is the function that the interrupt calls to increment the rotation count
-//-------------------------------------------------------------------------------------------------------------
-////////////////////////////////////ISR rotation//////////////////////////////////////////////////////////////
-//-------------------------------------------------------------------------------------------------------------
-ICACHE_RAM_ATTR void isr_rotation(void)   
+void wspeedIRQ()
+// Activated by the magnet in the anemometer (2 ticks per rotation), attached to input D3
 {
-  if ((millis() - ContactBounceTime) > 30 ) {  // debounce the switch contact.
-    Rotations++;
-    ContactBounceTime = millis();
+  if (millis() - lastWindIRQ > 10) // Ignore switch-bounce glitches less than 10ms (142MPH max reading) after the reed switch closes
+  {
+    lastWindIRQ = millis(); //Grab the current time
+    windClicks++; //There is 1.492MPH for each click per second.
   }
 }
-// Convert MPH to Knots
-float getKnots(float speed) {
-   return speed * 0.868976;          //knots 0.868976;
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+  pinMode(WSPEED, INPUT_PULLUP); // input from wind meters windspeed sensor
+  seconds = 0;
+  lastSecond = millis();
+  attachInterrupt(1, wspeedIRQ, FALLING);
+  interrupts();
+
 }
-// Convert MPH to m/s
-float getms(float speed) {
-   return speed * 0.44704;           //metric m/s 0.44704;;
+
+void loop() {
+  // put your main code here, to run repeatedly:
+ if(millis() - lastSecond >= 1000)
+  {
+
+    lastSecond += 1000;
+
+
+    //Calc the wind speed and direction every second for 120 second to get 2 minute average
+    float currentSpeed = get_wind_speed();
+    windspeedmph = currentSpeed * 1.6; //update global variable for windspeed when using the printWeather() function
+   
+   
+
+    if(++seconds > 59)
+    {
+      seconds = 0;
+
+      if(++minutes > 59) minutes = 0;
+      if(++minutes_10m > 9) minutes_10m = 0;
+
+    }
+  }
+
+  delay(100);
+  Serial.println("Velocita' vento: " +String(windspeedmph)+ " km/h");
+  
+}
+
+float get_wind_speed()
+{
+  float deltaTime = millis() - lastWindCheck; //750ms
+
+  deltaTime /= 1000.0; //Covert to seconds
+
+  float windSpeed = (float)windClicks / deltaTime; //3 / 0.750s = 4
+
+  windClicks = 0; //Reset and start watching for new wind
+  lastWindCheck = millis();
+
+  windSpeed *= 1.492; //4 * 1.492 = 5.968MPH
+
+  /* Serial.println();
+   Serial.print("Windspeed:");
+   Serial.println(windSpeed);*/
+
+  return(windSpeed);
 }
