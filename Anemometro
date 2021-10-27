@@ -1,51 +1,41 @@
-#define sensore 5 
+#define WIND_SPD_PIN 14
+volatile unsigned long timeSinceLastTick = 0;
+volatile unsigned long lastTick = 0;    
+float windSpeed;
+    long secsClock = 0;
 
-
-float momentoprecedente = 0; 
-int gialetto = 0; 
-float tempo = 0; 
-
-float impulsimetrosec = 0.85; 
-
-int velocita = 0; 
-int impulso = 0;
-
-
-void setup()
-{
- Serial.begin (9600);
- pinMode (sensore, INPUT);
- momentoprecedente = millis ();
- 
+void windTick(void)
+    {
+      timeSinceLastTick = millis() - lastTick;
+      lastTick = millis();
+    }
+void setup() {
+  Serial.begin(9600);
+  pinMode(WIND_SPD_PIN, INPUT);     // Wind speed sensor
+  attachInterrupt(digitalPinToInterrupt(WIND_SPD_PIN), windTick, FALLING);
 }
-//
-//
-void loop()
-{
- impulso = digitalRead (sensore);
-  Serial.print ("impulso"); Serial.println (impulso);
- if ((impulso == 1) && (gialetto == 0))
- {
- // Serial.println ("pulse");
- gialetto = 1; 
- tempo = millis () - momentoprecedente; 
- momentoprecedente = millis (); 
- velocita = ((1000 / tempo) / impulsimetrosec); 
 
- 
- Serial.print (velocita);
- Serial.println (" metri/sec ");
- }
- if ((impulso == 0) && (gialetto == 1))
- {
- gialetto = 2;
- }
- if ((impulso == 1) && (gialetto == 2))
- {
- gialetto = 3;
- }
- if ((impulso == 0) && (gialetto == 3))
- {
- gialetto = 0;
- }
+void loop() {
+      static unsigned long outLoopTimer = 0;
+      static unsigned long wundergroundUpdateTimer = 0;
+      static unsigned long clockTimer = 0;
+      static unsigned long tempMSClock = 0;
+      tempMSClock += millis() - clockTimer;
+      clockTimer = millis();
+      while (tempMSClock >= 1000)
+      {
+        secsClock++;
+        tempMSClock -= 1000;
+      }
+      
+      // This is a once-per-second timer that calculates and prints off various
+      //  values from the sensors attached to the system.
+      if (millis() - outLoopTimer >= 2000)
+      {
+        outLoopTimer = millis();
+        // Windspeed calculation, in mph. timeSinceLastTick gets updated by an
+        //  interrupt when ticks come in from the wind speed sensor.
+        if (timeSinceLastTick != 0) windSpeed = 1000.0/timeSinceLastTick;
+      }
+        Serial.println("Velocita' mph: " +String(windSpeed)+" ");
 }
