@@ -1,7 +1,6 @@
 #define WIND_SPD_PIN 14
 volatile unsigned long timeSinceLastTick = 0;
 volatile unsigned long lastTick = 0;    
-float windSpeed;
     long secsClock = 0;
 
 void windTick(void)
@@ -20,6 +19,8 @@ void loop() {
       static unsigned long wundergroundUpdateTimer = 0;
       static unsigned long clockTimer = 0;
       static unsigned long tempMSClock = 0;
+      float windSpeed;
+
       tempMSClock += millis() - clockTimer;
       clockTimer = millis();
       while (tempMSClock >= 1000)
