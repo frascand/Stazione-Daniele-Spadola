@@ -37,5 +37,6 @@ void loop() {
         //  interrupt when ticks come in from the wind speed sensor.
         if (timeSinceLastTick != 0) windSpeed = 1000.0/timeSinceLastTick;
       }
-        Serial.println("Velocita' mph: " +String(windSpeed)+" ");
+        Serial.println("Velocita' km/h: " +String(windSpeed*2.4*4.5)+" ");
+        windSpeed=0;
 }
