@@ -9,19 +9,12 @@
  WiFiClient client;
 
 //ANEMOMETRO
-float tipCount1h ;   // bucket tip counter used in interrupt routine
-float tipCount24h ;  // bucket tip counter used in interrupt routine  
-unsigned int counter = 15;
-volatile unsigned long contactTime;
-int WindSensorPin = 14;               // Wind speed -ILS sensor (anemometer) GPIO 14
-volatile unsigned long Rotations;     // cup rotation counter used in interrupt routine
-volatile unsigned long ContactBounceTime;  // Timer to avoid contact bounce in interrupt routine
+#define WIND_SPD_PIN 14
+volatile unsigned long timeSinceLastTick = 0;
+volatile unsigned long lastTick = 0;    
+long secsClock = 0;
+float vento=0;
 
-float windSpeed = 0;     // Wind speed (mph)
-float wind_speed_min = 100; // Minimum wind speed (mph)
-float wind_speed_avg;    // 10 minutes average wind speed ( mph)
-float windgustmph = 0;   // Wind gust speed( mph)
-float windmax = 0;
 
  //THINGSPEAK
  unsigned long myChannelNumber = 1512831 ;
@@ -42,8 +35,12 @@ float umidita = 0.0;
 void getDati();
 void VisualizzaSeriale();
 void InviaDati();
-void getWindSpeed();
-
+float Vento();
+void windTick(void)
+    {
+      timeSinceLastTick = millis() - lastTick;
+      lastTick = millis();
+    }
 
 void setup() {
   Serial.begin(115200);
@@ -58,31 +55,9 @@ void setup() {
   Serial.println(WiFi.localIP());
   while (!Serial) continue;
   ThingSpeak.begin(client);
+  pinMode(WIND_SPD_PIN, INPUT);     
+  attachInterrupt(digitalPinToInterrupt(WIND_SPD_PIN), windTick, FALLING);
   
-  Rotations = 0;   // Set Rotations to 0 ready for calculations
-  wind_speed_min=100;
-  pinMode(WindSensorPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(WindSensorPin), isr_rotation, FALLING);  // change if low to high >> RISING
-  sei();
-  ArduinoOTA.setHostname("NodeMCU_weather_station");
-  ArduinoOTA.onStart([]() {
-    Serial.println("Start");
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
-  });
-  ArduinoOTA.begin();
 }
 
 void loop() {
@@ -90,20 +65,20 @@ void loop() {
   getDati();
   VisualizzaSeriale();
   InviaDati();
-  Serial.println("Vado a dormire per 10 minuti circa");
-  ESP.deepSleep(6e8);
+ // Serial.println("Vado a dormire per 10 minuti circa");
+ // ESP.deepSleep(6e8);
 }
 
 void getDati(){
   temperatura = dht.readTemperature();
   umidita = dht.readHumidity();
-  getWindSpeed();
+  vento=Vento()*1.61;
 }
 
 void VisualizzaSeriale(){
   Serial.print("Temperatura: "); Serial.print(temperatura); Serial.println(" °C");
   Serial.print("Umidita': "); Serial.print(umidita); Serial.println(" %");
-  Serial.print("Velocita' vento: "); Serial.print(windSpeed); Serial.println(" km/h");
+  Serial.print("Velocita' vento: "); Serial.print(vento); Serial.println(" km/h");
   Serial.println();  
 }
 
@@ -111,40 +86,33 @@ void InviaDati(){
   Serial.println("Invio dati a Thingspeak");
   ThingSpeak.setField(1, (float)temperatura);
   ThingSpeak.setField(2, (float)umidita);
-  ThingSpeak.setField(3, (float)windSpeed);
+  ThingSpeak.setField(3, (float)vento);
   ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
   delay(updateThingSpeakInterval);
 }
 
-void getWindSpeed(void)
-  {
- 
-     Rotations = 0; // Set Rotations count to 0 ready for calculations
-     //sei(); // Enables interrupts
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 sedconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     ArduinoOTA.handle();
-     delay (5000); // Wait 5 seconds to average wind speed
-     //cli(); // Disable interrupts
-     
-     /* convert to mp/h using the formula V=P(2.25/T)
-      V = P(2.25/30) = P * 0.075       V - speed in mph,  P - pulses per sample period, T - sample period in seconds */
-     windSpeed = Rotations * 0.15; // 30 seconds
-     Rotations = 0;   // Reset count for next sample
-     windSpeed = windSpeed * 1.6;
-}
-void isr_rotation(void)   
-{
-  if ((millis() - ContactBounceTime) > 30 ) {  // debounce the switch contact.
-    Rotations++;
-    ContactBounceTime = millis();
+float Vento(){
+      static unsigned long outLoopTimer = 0;
+      static unsigned long wundergroundUpdateTimer = 0;
+      static unsigned long clockTimer = 0;
+      static unsigned long tempMSClock = 0;
+      tempMSClock += millis() - clockTimer;
+      clockTimer = millis();
+      while (tempMSClock >= 1000)
+      {
+        secsClock++;
+        tempMSClock -= 1000;
+      }
+      
+      // This is a once-per-second timer that calculates and prints off various
+      //  values from the sensors attached to the system.
+      if (millis() - outLoopTimer >= 2000)
+      {
+        outLoopTimer = millis();
+        // Windspeed calculation, in mph. timeSinceLastTick gets updated by an
+        //  interrupt when ticks come in from the wind speed sensor.
+        if (timeSinceLastTick != 0) windSpeed = 1000.0/timeSinceLastTick;
+      }
+     return(windSpeed);
   }
-}
+        
