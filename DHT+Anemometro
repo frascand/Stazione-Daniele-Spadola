@@ -96,6 +96,7 @@ float Vento(){
       static unsigned long wundergroundUpdateTimer = 0;
       static unsigned long clockTimer = 0;
       static unsigned long tempMSClock = 0;
+      float windSpeed=0;
       tempMSClock += millis() - clockTimer;
       clockTimer = millis();
       while (tempMSClock >= 1000)
